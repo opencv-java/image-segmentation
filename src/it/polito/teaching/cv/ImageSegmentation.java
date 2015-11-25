@@ -8,7 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.fxml.FXMLLoader;
 
-public class Lab6 extends Application
+public class ImageSegmentation extends Application
 {
 	/**
 	 * The main class for a JavaFX application. It creates and handle the main
@@ -18,7 +18,8 @@ public class Lab6 extends Application
 	 * to remove a uniform background with the erosion and dilation operators.
 	 * 
 	 * @author <a href="mailto:luigi.derussis@polito.it">Luigi De Russis</a>
-	 * @since 2013-12-20
+	 * @version 1.1 (2015-11-24)
+	 * @since 1.0 (2013-12-20)
 	 * 
 	 */
 	@Override
@@ -35,7 +36,7 @@ public class Lab6 extends Application
 			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
 			// create the stage with the given title and the previously created
 			// scene
-			primaryStage.setTitle("Lab6");
+			primaryStage.setTitle("Image Segmentation");
 			primaryStage.setScene(scene);
 			// show the GUI
 			primaryStage.show();

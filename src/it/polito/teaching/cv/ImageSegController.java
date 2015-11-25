@@ -3,18 +3,9 @@ package it.polito.teaching.cv;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
-
-import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Slider;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
@@ -25,9 +16,16 @@ import org.opencv.core.MatOfInt;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
-import org.opencv.highgui.Highgui;
-import org.opencv.highgui.VideoCapture;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.videoio.VideoCapture;
+
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Slider;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 
 /**
  * The controller associated with the only view of our application. The
@@ -36,8 +34,9 @@ import org.opencv.imgproc.Imgproc;
  * controls and the image segmentation process.
  * 
  * @author <a href="mailto:luigi.derussis@polito.it">Luigi De Russis</a>
- * @since 2013-12-20
- * 
+ * @version 1.5 (2015-11-24)
+ * @since 1.0 (2013-12-20)
+ * 		
  */
 public class ImageSegController
 {
@@ -62,7 +61,7 @@ public class ImageSegController
 	private CheckBox inverse;
 	
 	// a timer for acquiring the video stream
-	private Timer timer;
+	private ScheduledExecutorService timer;
 	// the OpenCV object that performs the video capture
 	private VideoCapture capture = new VideoCapture();
 	// a flag to change the button behavior
@@ -74,10 +73,6 @@ public class ImageSegController
 	@FXML
 	protected void startCamera()
 	{
-		// bind an image property with the original frame container
-		final ObjectProperty<Image> imageProp = new SimpleObjectProperty<>();
-		this.originalFrame.imageProperty().bind(imageProp);
-		
 		// set a fixed width for the frame
 		originalFrame.setFitWidth(380);
 		// preserve image ratio
@@ -97,27 +92,19 @@ public class ImageSegController
 			{
 				this.cameraActive = true;
 				
-				// grab a frame every 33 ms (30 frames/sec)
-				TimerTask frameGrabber = new TimerTask() {
+				/// grab a frame every 33 ms (30 frames/sec)
+				Runnable frameGrabber = new Runnable() {
+					
 					@Override
 					public void run()
 					{
-						// update the image property => update the frame
-						// shown in the UI
-						final Image frame = grabFrame();
-						Platform.runLater(new Runnable() {
-							
-							@Override
-							public void run()
-							{
-								// show the original frames
-								imageProp.set(frame);
-							}
-						});
+						Image imageToShow = grabFrame();
+						originalFrame.setImage(imageToShow);
 					}
 				};
-				this.timer = new Timer();
-				this.timer.schedule(frameGrabber, 0, 33);
+				
+				this.timer = Executors.newSingleThreadScheduledExecutor();
+				this.timer.scheduleAtFixedRate(frameGrabber, 0, 33, TimeUnit.MILLISECONDS);
 				
 				// update the button content
 				this.cameraButton.setText("Stop Camera");
@@ -137,15 +124,22 @@ public class ImageSegController
 			// enable setting checkboxes
 			this.canny.setDisable(false);
 			this.dilateErode.setDisable(false);
-			
 			// stop the timer
-			if (this.timer != null)
+			try
 			{
-				this.timer.cancel();
-				this.timer = null;
+				this.timer.shutdown();
+				this.timer.awaitTermination(33, TimeUnit.MILLISECONDS);
 			}
+			catch (InterruptedException e)
+			{
+				// log the exception
+				System.err.println("Exception in stopping the frame capture, trying to release the camera now... " + e);
+			}
+			
 			// release the camera
 			this.capture.release();
+			// clean the frame
+			this.originalFrame.setImage(null);
 		}
 	}
 	
@@ -212,6 +206,10 @@ public class ImageSegController
 		List<Mat> hsvPlanes = new ArrayList<>();
 		Mat thresholdImg = new Mat();
 		
+		int thresh_type = Imgproc.THRESH_BINARY_INV;
+		if (this.inverse.isSelected())
+			thresh_type = Imgproc.THRESH_BINARY;
+		
 		// threshold the image with the average hue value
 		hsvImg.create(frame.size(), CvType.CV_8U);
 		Imgproc.cvtColor(frame, hsvImg, Imgproc.COLOR_BGR2HSV);
@@ -220,16 +218,13 @@ public class ImageSegController
 		// get the average hue value of the image
 		double threshValue = this.getHistAverage(hsvImg, hsvPlanes.get(0));
 		
-		if (this.inverse.isSelected())
-			Imgproc.threshold(hsvPlanes.get(0), thresholdImg, threshValue, 180, Imgproc.THRESH_BINARY_INV);
-		else
-			Imgproc.threshold(hsvPlanes.get(0), thresholdImg, threshValue, 180, Imgproc.THRESH_BINARY);
-		
+		Imgproc.threshold(hsvPlanes.get(0), thresholdImg, threshValue, 180, thresh_type);
+			
 		Imgproc.blur(thresholdImg, thresholdImg, new Size(5, 5));
 		
 		// dilate to fill gaps, erode to smooth edges
-		Imgproc.dilate(thresholdImg, thresholdImg, new Mat(), new Point(-1, 1), 1);
-		Imgproc.erode(thresholdImg, thresholdImg, new Mat(), new Point(-1, 1), 3);
+		Imgproc.dilate(thresholdImg, thresholdImg, new Mat(), new Point(-1, -1), 1);
+		Imgproc.erode(thresholdImg, thresholdImg, new Mat(), new Point(-1, -1), 3);
 		
 		Imgproc.threshold(thresholdImg, thresholdImg, threshValue, 180, Imgproc.THRESH_BINARY);
 		
@@ -299,11 +294,10 @@ public class ImageSegController
 		Imgproc.blur(grayImage, detectedEdges, new Size(3, 3));
 		
 		// canny detector, with ratio of lower:upper threshold of 3:1
-		Imgproc.Canny(detectedEdges, detectedEdges, this.threshold.getValue(), this.threshold.getValue() * 3, 3, false);
+		Imgproc.Canny(detectedEdges, detectedEdges, this.threshold.getValue(), this.threshold.getValue() * 3);
 		
 		// using Canny's output as a mask, display the result
 		Mat dest = new Mat();
-		Core.add(dest, Scalar.all(0), dest);
 		frame.copyTo(dest, detectedEdges);
 		
 		return dest;
@@ -328,7 +322,7 @@ public class ImageSegController
 			this.threshold.setDisable(false);
 		else
 			this.threshold.setDisable(true);
-		
+			
 		// now the capture can start
 		this.cameraButton.setDisable(false);
 	}
@@ -351,7 +345,7 @@ public class ImageSegController
 			this.inverse.setDisable(false);
 		else
 			this.inverse.setDisable(true);
-		
+			
 		// now the capture can start
 		this.cameraButton.setDisable(false);
 	}
@@ -368,7 +362,7 @@ public class ImageSegController
 		// create a temporary buffer
 		MatOfByte buffer = new MatOfByte();
 		// encode the frame in the buffer, according to the PNG format
-		Highgui.imencode(".png", frame, buffer);
+		Imgcodecs.imencode(".png", frame, buffer);
 		// build and return an Image created from the image encoded in the
 		// buffer
 		return new Image(new ByteArrayInputStream(buffer.toArray()));
