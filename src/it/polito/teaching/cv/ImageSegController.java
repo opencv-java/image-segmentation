@@ -218,7 +218,7 @@ public class ImageSegController
 		// get the average hue value of the image
 		double threshValue = this.getHistAverage(hsvImg, hsvPlanes.get(0));
 		
-		Imgproc.threshold(hsvPlanes.get(0), thresholdImg, threshValue, 180, thresh_type);
+		Imgproc.threshold(hsvPlanes.get(0), thresholdImg, threshValue, 179.0, thresh_type);
 			
 		Imgproc.blur(thresholdImg, thresholdImg, new Size(5, 5));
 		
@@ -226,7 +226,7 @@ public class ImageSegController
 		Imgproc.dilate(thresholdImg, thresholdImg, new Mat(), new Point(-1, -1), 1);
 		Imgproc.erode(thresholdImg, thresholdImg, new Mat(), new Point(-1, -1), 3);
 		
-		Imgproc.threshold(thresholdImg, thresholdImg, threshValue, 180, Imgproc.THRESH_BINARY);
+		Imgproc.threshold(thresholdImg, thresholdImg, threshValue, 179.0, Imgproc.THRESH_BINARY);
 		
 		// create the new image
 		Mat foreground = new Mat(frame.size(), CvType.CV_8UC3, new Scalar(255, 255, 255));
