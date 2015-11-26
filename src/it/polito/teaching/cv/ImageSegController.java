@@ -92,7 +92,7 @@ public class ImageSegController
 			{
 				this.cameraActive = true;
 				
-				/// grab a frame every 33 ms (30 frames/sec)
+				// grab a frame every 33 ms (30 frames/sec)
 				Runnable frameGrabber = new Runnable() {
 					
 					@Override
