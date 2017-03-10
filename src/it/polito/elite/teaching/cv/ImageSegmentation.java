@@ -1,4 +1,4 @@
-package it.polito.teaching.cv;
+package it.polito.elite.teaching.cv;
 	
 import org.opencv.core.Core;
 

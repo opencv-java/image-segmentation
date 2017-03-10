@@ -1,4 +1,4 @@
-package it.polito.teaching.cv;
+package it.polito.elite.teaching.cv;
 
 import java.util.ArrayList;
 import java.util.List;
