@@ -1,5 +1,7 @@
 ## Image Segmentation with OpenCV and JavaFX
 
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
+
 *Computer Vision course - [Politecnico di Torino](http://www.polito.it)*
 
 A project, made in Eclipse (Neon), for experimenting with edge detection, erosion and dilatation. It performs image segmentation upon a webcam video stream. Some screenshots of the running project are available in the `results` folder.
